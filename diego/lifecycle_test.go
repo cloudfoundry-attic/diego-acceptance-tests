@@ -64,7 +64,7 @@ var _ = Describe("Application Lifecycle", func() {
 			Eventually(helpers.CurlingAppRoot(appName)).Should(ContainSubstring("Hi, I'm Dora!"))
 
 			By("checking its LANG")
-			Ω(helpers.CurlApp(appName, "/env/LANG")).Should(ContainSubstring("en_US.UTF-8"))
+			Expect(helpers.CurlApp(appName, "/env/LANG")).To(ContainSubstring("en_US.UTF-8"))
 
 			By("verifying the buildpack's detect never runs")
 			appGuid := guidForAppName(appName)
@@ -82,7 +82,7 @@ var _ = Describe("Application Lifecycle", func() {
 			Eventually(helpers.CurlingAppRoot(appName)).Should(ContainSubstring("Hi, I'm Dora!"))
 
 			By("checking its LANG")
-			Ω(helpers.CurlApp(appName, "/env/LANG")).Should(ContainSubstring("en_GB.ISO8859-1"))
+			Expect(helpers.CurlApp(appName, "/env/LANG")).To(ContainSubstring("en_GB.ISO8859-1"))
 
 			By("scaling it")
 			Eventually(cf.Cf("scale", appName, "-i", "2")).Should(Exit(0))

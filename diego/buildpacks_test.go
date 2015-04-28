@@ -50,7 +50,7 @@ var _ = Describe("Buildpacks", func() {
 		enableDiego(appName)
 		session := cf.Cf("start", appName)
 		Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
-		Ω(session).Should(Say("LANG=en_US.UTF-8"))
+		Expect(session).To(Say("LANG=en_US.UTF-8"))
 		Eventually(helpers.CurlingAppRoot(appName)).Should(ContainSubstring("Hi, I'm Bash!"))
 	})
 
@@ -59,6 +59,6 @@ var _ = Describe("Buildpacks", func() {
 		enableDiego(appName)
 		session := cf.Cf("start", appName)
 		Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
-		Ω(session).Should(Say("CF_STACK=cflinuxfs2"))
+		Expect(session).To(Say("CF_STACK=cflinuxfs2"))
 	})
 })

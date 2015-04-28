@@ -57,14 +57,14 @@ var _ = Describe("Docker Application Lifecycle", func() {
 			json.Unmarshal([]byte(env_json), &env_vars)
 
 			// garden set values should win
-			Ω(env_vars).Should(HaveKey("HOME"))
-			Ω(env_vars).ShouldNot(HaveKeyWithValue("HOME", "/home/some_docker_user"))
-			Ω(env_vars).Should(HaveKey("VCAP_APPLICATION"))
-			Ω(env_vars).ShouldNot(HaveKeyWithValue("VCAP_APPLICATION", "{}"))
+			Expect(env_vars).To(HaveKey("HOME"))
+			Expect(env_vars).NotTo(HaveKeyWithValue("HOME", "/home/some_docker_user"))
+			Expect(env_vars).To(HaveKey("VCAP_APPLICATION"))
+			Expect(env_vars).NotTo(HaveKeyWithValue("VCAP_APPLICATION", "{}"))
 			// docker image values should remain
-			Ω(env_vars).Should(HaveKeyWithValue("SOME_VAR", "some_docker_value"))
-			Ω(env_vars).Should(HaveKeyWithValue("BAD_QUOTE", "'"))
-			Ω(env_vars).Should(HaveKeyWithValue("BAD_SHELL", "$1"))
+			Expect(env_vars).To(HaveKeyWithValue("SOME_VAR", "some_docker_value"))
+			Expect(env_vars).To(HaveKeyWithValue("BAD_QUOTE", "'"))
+			Expect(env_vars).To(HaveKeyWithValue("BAD_SHELL", "$1"))
 		})
 	})
 

@@ -52,7 +52,7 @@ var _ = Describe("Security Groups", func() {
 
 		secureAddress := helpers.LoadConfig().SecureAddress
 		secureHost, securePort, err := net.SplitHostPort(secureAddress)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		// test app egress rules
 		var doraCurlResponse DoraCurlResponse

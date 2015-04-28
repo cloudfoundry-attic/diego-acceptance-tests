@@ -61,7 +61,7 @@ var _ = Describe("Getting instance information", func() {
 		It("fails with insufficient resources", func() {
 			app := cf.Cf("app", appName)
 			Eventually(app).Should(Exit(0))
-			Ω(app.Out).Should(Say("insufficient resources"))
+			Expect(app.Out).To(Say("insufficient resources"))
 		})
 	})
 })

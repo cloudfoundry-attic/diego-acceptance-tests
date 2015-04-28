@@ -32,7 +32,7 @@ var _ = Describe("When staging fails", func() {
 		It("informs the user in the CLI output and the logs", func() {
 			start := cf.Cf("start", appName)
 			Eventually(start, CF_PUSH_TIMEOUT).Should(Exit(1))
-			Ω(start.Out).Should(gbytes.Say("Staging error: cannot get instances since staging failed"))
+			Expect(start.Out).To(gbytes.Say("Staging error: cannot get instances since staging failed"))
 
 			Eventually(func() *Session {
 				logs := cf.Cf("logs", appName, "--recent")
@@ -60,7 +60,7 @@ var _ = Describe("When staging fails", func() {
 		It("informs the user in the CLI output and the logs", func() {
 			start := cf.Cf("start", appName)
 			Eventually(start, CF_PUSH_TIMEOUT).Should(Exit(1))
-			Ω(start.Out).Should(gbytes.Say("message: Insufficient resources"))
+			Expect(start.Out).To(gbytes.Say("message: Insufficient resources"))
 
 			Eventually(func() *Session {
 				logs := cf.Cf("logs", appName, "--recent")
@@ -70,7 +70,7 @@ var _ = Describe("When staging fails", func() {
 
 			app := cf.Cf("app", appName)
 			Eventually(app).Should(Exit(0))
-			Ω(app.Out).Should(gbytes.Say("requested state: stopped"))
+			Expect(app.Out).To(gbytes.Say("requested state: stopped"))
 		})
 	})
 })

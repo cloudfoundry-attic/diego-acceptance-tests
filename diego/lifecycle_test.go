@@ -107,7 +107,7 @@ var _ = Describe("Application Lifecycle", func() {
 
 		It("being reported as 'crashed' after enough crashes", func() {
 			By("pushing it")
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Dora, "-c", "/bin/false", "--no-start", "-b", "ruby_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Dora, "-c", "/bin/false", "--no-start", "-b", "ruby_buildpack", "-t", "10"), CF_PUSH_TIMEOUT).Should(Exit(0))
 
 			By("staging and running it on Diego")
 			enableDiego(appName)

@@ -62,7 +62,7 @@ var _ = Describe("SSH", func() {
 		return response.AppSSHEndpoint
 	}
 
-	FDescribe("An App running on Diego with enable_ssh on", func() {
+	Describe("An App running on Diego with enable_ssh on", func() {
 		BeforeEach(func() {
 			enableSSH(appName)
 

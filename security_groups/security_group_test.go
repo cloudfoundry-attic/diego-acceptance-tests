@@ -1,4 +1,4 @@
-package diego
+package security_groups
 
 import (
 	"encoding/json"

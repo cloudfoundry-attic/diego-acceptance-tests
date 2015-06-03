@@ -67,7 +67,9 @@ var _ = Describe("SSH", func() {
 			enableSSH(appName)
 
 			Eventually(cf.Cf("start", appName), CF_PUSH_TIMEOUT).Should(Exit(0))
-			Eventually(helpers.CurlingAppRoot(appName)).Should(ContainSubstring("Hi, I'm Dora!"))
+			Eventually(func() string {
+				return helpers.CurlApp(appName, "/env/INSTANCE_INDEX")
+			}).Should(Equal("1"))
 		})
 
 		It("can be sshed to and records its success", func() {

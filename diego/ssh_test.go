@@ -1,10 +1,20 @@
 package diego
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 
+	"github.com/kr/pty"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gbytes"
@@ -96,6 +106,104 @@ var _ = Describe("SSH", func() {
 			Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-authorized"))
 		})
 
+		Context("scp", func() {
+			var (
+				sourceDir, targetDir, generatedFile, generatedFileName string
+				generatedFileInfo                                      os.FileInfo
+				err                                                    error
+			)
+
+			BeforeEach(func() {
+				Expect(err).NotTo(HaveOccurred())
+
+				sourceDir, err = ioutil.TempDir("", "scp-source")
+				Expect(err).NotTo(HaveOccurred())
+
+				fileContents := make([]byte, 1024)
+				b, err := rand.Read(fileContents)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(b).To(Equal(len(fileContents)))
+
+				generatedFileName = "binary.dat"
+				generatedFile = filepath.Join(sourceDir, generatedFileName)
+
+				err = ioutil.WriteFile(generatedFile, fileContents, 0664)
+				Expect(err).NotTo(HaveOccurred())
+
+				generatedFileInfo, err = os.Stat(generatedFile)
+				Expect(err).NotTo(HaveOccurred())
+
+				targetDir, err = ioutil.TempDir("", "scp-target")
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			runScp := func(src, dest string) {
+				_, sshPort, err := net.SplitHostPort(sshProxyAddress())
+				Expect(err).NotTo(HaveOccurred())
+
+				ptyMaster, ptySlave, err := pty.Open()
+				Expect(err).NotTo(HaveOccurred())
+				defer ptyMaster.Close()
+				defer ptySlave.Close()
+
+				password := oauthToken() + "\n"
+
+				cmd := exec.Command(scpPath,
+					"-r",
+					"-P", sshPort,
+					fmt.Sprintf("-oUser=cf:%s/0", guidForAppName(appName)),
+					"-oUserKnownHostsFile=/dev/null",
+					"-oStrictHostKeyChecking=no",
+					src,
+					dest,
+				)
+
+				cmd.Stdin = ptySlave
+				cmd.Stdout = ptySlave
+				cmd.Stderr = ptySlave
+
+				cmd.SysProcAttr = &syscall.SysProcAttr{
+					Setctty: true,
+					Setsid:  true,
+				}
+
+				err = cmd.Start()
+				Expect(err).NotTo(HaveOccurred())
+
+				b := make([]byte, 1)
+				buf := []byte{}
+				passwordPrompt := []byte("password: ")
+				for {
+					n, err := ptyMaster.Read(b)
+					Expect(n).To(Equal(1))
+					Expect(err).NotTo(HaveOccurred())
+					buf = append(buf, b[0])
+					if bytes.HasSuffix(buf, passwordPrompt) {
+						break
+					}
+				}
+
+				n, err := ptyMaster.Write([]byte(password))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(n).To(Equal(len(password)))
+
+				io.Copy(GinkgoWriter, ptyMaster)
+
+				err = cmd.Wait()
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			It("can send and receive files over scp", func() {
+				sshHost, _, err := net.SplitHostPort(sshProxyAddress())
+				Expect(err).NotTo(HaveOccurred())
+
+				runScp(sourceDir, fmt.Sprintf("%s:/home/vcap", sshHost))
+				runScp(fmt.Sprintf("%s:/home/vcap/%s", sshHost, filepath.Base(sourceDir)), targetDir)
+
+				compareDir(sourceDir, filepath.Join(targetDir, filepath.Base(sourceDir)))
+			})
+		})
+
 		It("records failed ssh attempts", func() {
 			clientConfig := &ssh.ClientConfig{
 				User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 0),
@@ -109,3 +217,48 @@ var _ = Describe("SSH", func() {
 		})
 	})
 })
+
+func compareDir(actualDir, expectedDir string) {
+	actualDirInfo, err := os.Stat(actualDir)
+	Expect(err).NotTo(HaveOccurred())
+
+	expectedDirInfo, err := os.Stat(expectedDir)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(actualDirInfo.Mode()).To(Equal(expectedDirInfo.Mode()))
+
+	actualFiles, err := ioutil.ReadDir(actualDir)
+	Expect(err).NotTo(HaveOccurred())
+
+	expectedFiles, err := ioutil.ReadDir(actualDir)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(len(actualFiles)).To(Equal(len(expectedFiles)))
+	for i, actualFile := range actualFiles {
+		expectedFile := expectedFiles[i]
+		if actualFile.IsDir() {
+			compareDir(filepath.Join(actualDir, actualFile.Name()), filepath.Join(expectedDir, expectedFile.Name()))
+		} else {
+			compareFile(filepath.Join(actualDir, actualFile.Name()), filepath.Join(expectedDir, expectedFile.Name()))
+		}
+	}
+}
+
+func compareFile(actualFile, expectedFile string) {
+	actualFileInfo, err := os.Stat(actualFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	expectedFileInfo, err := os.Stat(expectedFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(actualFileInfo.Mode()).To(Equal(expectedFileInfo.Mode()))
+	Expect(actualFileInfo.Size()).To(Equal(expectedFileInfo.Size()))
+
+	actualContents, err := ioutil.ReadFile(actualFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	expectedContents, err := ioutil.ReadFile(expectedFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(actualContents).To(Equal(expectedContents))
+}

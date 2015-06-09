@@ -1,6 +1,7 @@
 package diego
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +23,10 @@ const (
 	GIT_NULL_BUILDPACK = "https://github.com/cloudfoundry-incubator/null-buildpack"
 )
 
-var context helpers.SuiteContext
+var (
+	context helpers.SuiteContext
+	scpPath string
+)
 
 func guidForAppName(appName string) string {
 	cfApp := cf.Cf("app", appName, "--guid")
@@ -62,7 +66,12 @@ func TestApplications(t *testing.T) {
 	context = helpers.NewContext(config)
 	environment := helpers.NewEnvironment(context)
 
-	BeforeSuite(func() {
+	var _ = SynchronizedBeforeSuite(func() []byte {
+		path, err := exec.LookPath("scp")
+		Expect(err).NotTo(HaveOccurred())
+		return []byte(path)
+	}, func(encodedSCPPath []byte) {
+		scpPath = string(encodedSCPPath)
 		environment.Setup()
 	})
 

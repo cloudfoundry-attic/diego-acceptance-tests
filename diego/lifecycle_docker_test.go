@@ -1,3 +1,5 @@
+// +build !noInternet
+
 package diego
 
 import (

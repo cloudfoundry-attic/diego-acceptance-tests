@@ -19,6 +19,7 @@ const (
 	LONG_CURL_TIMEOUT                     = 4 * time.Minute
 	DOCKER_IMAGE_DOWNLOAD_DEFAULT_TIMEOUT = 5 * time.Minute
 
+	BINARY_BUILDPACK   = "binary_buildpack"
 	ZIP_NULL_BUILDPACK = "https://github.com/cloudfoundry-incubator/null-buildpack/archive/master.zip"
 	GIT_NULL_BUILDPACK = "https://github.com/cloudfoundry-incubator/null-buildpack"
 )

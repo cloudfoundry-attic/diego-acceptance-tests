@@ -96,141 +96,190 @@ var _ = Describe("SSH", func() {
 			}).Should(Equal("1"))
 		})
 
-		It("can be sshed to and records its success", func() {
-			password := oauthToken()
+		Context("with the ssh plugin", func() {
+			It("can execute a remote command in the container", func() {
+				envCmd := cf.Cf("ssh", "-i", "1", appName, "/usr/bin/env")
+				Expect(envCmd.Wait()).To(Exit(0))
 
-			clientConfig := &ssh.ClientConfig{
-				User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 1),
-				Auth: []ssh.AuthMethod{ssh.Password(password)},
-			}
+				output := string(envCmd.Buffer().Contents())
 
-			client, err := ssh.Dial("tcp", sshProxyAddress(), clientConfig)
-			Expect(err).NotTo(HaveOccurred())
+				Expect(string(output)).To(MatchRegexp(fmt.Sprintf(`VCAP_APPLICATION=.*"application_name":"%s"`, appName)))
+				Expect(string(output)).To(MatchRegexp("INSTANCE_INDEX=1"))
 
-			session, err := client.NewSession()
-			Expect(err).NotTo(HaveOccurred())
-
-			output, err := session.Output("/usr/bin/env")
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(string(output)).To(MatchRegexp(fmt.Sprintf(`VCAP_APPLICATION=.*"application_name":"%s"`, appName)))
-			Expect(string(output)).To(MatchRegexp("INSTANCE_INDEX=1"))
-
-			Eventually(cf.Cf("logs", appName, "--recent")).Should(Say("Successful remote access"))
-			Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-authorized"))
-		})
-
-		Context("scp", func() {
-			var (
-				sourceDir, targetDir, generatedFile, generatedFileName string
-				generatedFileInfo                                      os.FileInfo
-				err                                                    error
-			)
-
-			BeforeEach(func() {
-				Expect(err).NotTo(HaveOccurred())
-
-				sourceDir, err = ioutil.TempDir("", "scp-source")
-				Expect(err).NotTo(HaveOccurred())
-
-				fileContents := make([]byte, 1024)
-				b, err := rand.Read(fileContents)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(b).To(Equal(len(fileContents)))
-
-				generatedFileName = "binary.dat"
-				generatedFile = filepath.Join(sourceDir, generatedFileName)
-
-				err = ioutil.WriteFile(generatedFile, fileContents, 0664)
-				Expect(err).NotTo(HaveOccurred())
-
-				generatedFileInfo, err = os.Stat(generatedFile)
-				Expect(err).NotTo(HaveOccurred())
-
-				targetDir, err = ioutil.TempDir("", "scp-target")
-				Expect(err).NotTo(HaveOccurred())
+				Eventually(cf.Cf("logs", appName, "--recent")).Should(Say("Successful remote access"))
+				Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-authorized"))
 			})
 
-			runScp := func(src, dest string) {
-				_, sshPort, err := net.SplitHostPort(sshProxyAddress())
+			FIt("runs an interactive session when no command is provided", func() {
+				envCmd := exec.Command("ssh", "-i", "1", appName)
+
+				stdin, err := envCmd.StdinPipe()
 				Expect(err).NotTo(HaveOccurred())
 
-				ptyMaster, ptySlave, err := pty.Open()
+				stdout, err := envCmd.StdoutPipe()
 				Expect(err).NotTo(HaveOccurred())
-				defer ptyMaster.Close()
 
-				password := oauthToken() + "\n"
+				err = envCmd.Start()
+				Expect(err).NotTo(HaveOccurred())
 
-				cmd := exec.Command(scpPath,
-					"-r",
-					"-P", sshPort,
-					fmt.Sprintf("-oUser=cf:%s/0", guidForAppName(appName)),
-					"-oUserKnownHostsFile=/dev/null",
-					"-oStrictHostKeyChecking=no",
-					src,
-					dest,
+				_, err = stdin.Write([]byte("/usr/bin/env\n"))
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = stdin.Write([]byte("exit\n"))
+				Expect(err).NotTo(HaveOccurred())
+
+				err = envCmd.Wait()
+				Expect(err).NotTo(HaveOccurred())
+
+				output, err := ioutil.ReadAll(stdout)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(string(output)).To(MatchRegexp(fmt.Sprintf(`VCAP_APPLICATION=.*"application_name":"%s"`, appName)))
+				Expect(string(output)).To(MatchRegexp("INSTANCE_INDEX=1"))
+
+				Eventually(cf.Cf("logs", appName, "--recent")).Should(Say("Successful remote access"))
+				Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-authorized"))
+			})
+		})
+
+		Context("without the ssh plugin", func() {
+
+			It("can be sshed to and records its success", func() {
+				password := oauthToken()
+
+				clientConfig := &ssh.ClientConfig{
+					User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 1),
+					Auth: []ssh.AuthMethod{ssh.Password(password)},
+				}
+
+				client, err := ssh.Dial("tcp", sshProxyAddress(), clientConfig)
+				Expect(err).NotTo(HaveOccurred())
+
+				session, err := client.NewSession()
+				Expect(err).NotTo(HaveOccurred())
+
+				output, err := session.Output("/usr/bin/env")
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(string(output)).To(MatchRegexp(fmt.Sprintf(`VCAP_APPLICATION=.*"application_name":"%s"`, appName)))
+				Expect(string(output)).To(MatchRegexp("INSTANCE_INDEX=1"))
+
+				Eventually(cf.Cf("logs", appName, "--recent")).Should(Say("Successful remote access"))
+				Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-authorized"))
+			})
+
+			Context("scp", func() {
+				var (
+					sourceDir, targetDir, generatedFile, generatedFileName string
+					generatedFileInfo                                      os.FileInfo
+					err                                                    error
 				)
 
-				cmd.Stdin = ptySlave
-				cmd.Stdout = ptySlave
-				cmd.Stderr = ptySlave
-
-				cmd.SysProcAttr = &syscall.SysProcAttr{
-					Setctty: true,
-					Setsid:  true,
-				}
-
-				saySCPRun(cmd)
-				err = cmd.Start()
-				Expect(err).NotTo(HaveOccurred())
-
-				// Close our open reference to ptySlave so that PTY Master recieves EOF
-				ptySlave.Close()
-
-				b := make([]byte, 1)
-				buf := []byte{}
-				passwordPrompt := []byte("password: ")
-				for {
-					n, err := ptyMaster.Read(b)
-					Expect(n).To(Equal(1))
+				BeforeEach(func() {
 					Expect(err).NotTo(HaveOccurred())
-					buf = append(buf, b[0])
-					if bytes.HasSuffix(buf, passwordPrompt) {
-						break
+
+					sourceDir, err = ioutil.TempDir("", "scp-source")
+					Expect(err).NotTo(HaveOccurred())
+
+					fileContents := make([]byte, 1024)
+					b, err := rand.Read(fileContents)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(b).To(Equal(len(fileContents)))
+
+					generatedFileName = "binary.dat"
+					generatedFile = filepath.Join(sourceDir, generatedFileName)
+
+					err = ioutil.WriteFile(generatedFile, fileContents, 0664)
+					Expect(err).NotTo(HaveOccurred())
+
+					generatedFileInfo, err = os.Stat(generatedFile)
+					Expect(err).NotTo(HaveOccurred())
+
+					targetDir, err = ioutil.TempDir("", "scp-target")
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				runScp := func(src, dest string) {
+					_, sshPort, err := net.SplitHostPort(sshProxyAddress())
+					Expect(err).NotTo(HaveOccurred())
+
+					ptyMaster, ptySlave, err := pty.Open()
+					Expect(err).NotTo(HaveOccurred())
+					defer ptyMaster.Close()
+
+					password := oauthToken() + "\n"
+
+					cmd := exec.Command(scpPath,
+						"-r",
+						"-P", sshPort,
+						fmt.Sprintf("-oUser=cf:%s/0", guidForAppName(appName)),
+						"-oUserKnownHostsFile=/dev/null",
+						"-oStrictHostKeyChecking=no",
+						src,
+						dest,
+					)
+
+					cmd.Stdin = ptySlave
+					cmd.Stdout = ptySlave
+					cmd.Stderr = ptySlave
+
+					cmd.SysProcAttr = &syscall.SysProcAttr{
+						Setctty: true,
+						Setsid:  true,
 					}
+
+					saySCPRun(cmd)
+					err = cmd.Start()
+					Expect(err).NotTo(HaveOccurred())
+
+					// Close our open reference to ptySlave so that PTY Master recieves EOF
+					ptySlave.Close()
+
+					b := make([]byte, 1)
+					buf := []byte{}
+					passwordPrompt := []byte("password: ")
+					for {
+						n, err := ptyMaster.Read(b)
+						Expect(n).To(Equal(1))
+						Expect(err).NotTo(HaveOccurred())
+						buf = append(buf, b[0])
+						if bytes.HasSuffix(buf, passwordPrompt) {
+							break
+						}
+					}
+
+					n, err := ptyMaster.Write([]byte(password))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(n).To(Equal(len(password)))
+
+					io.Copy(GinkgoWriter, ptyMaster)
+
+					err = cmd.Wait()
+					Expect(err).NotTo(HaveOccurred())
 				}
 
-				n, err := ptyMaster.Write([]byte(password))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(n).To(Equal(len(password)))
+				It("can send and receive files over scp", func() {
+					sshHost, _, err := net.SplitHostPort(sshProxyAddress())
+					Expect(err).NotTo(HaveOccurred())
 
-				io.Copy(GinkgoWriter, ptyMaster)
+					runScp(sourceDir, fmt.Sprintf("%s:/home/vcap", sshHost))
+					runScp(fmt.Sprintf("%s:/home/vcap/%s", sshHost, filepath.Base(sourceDir)), targetDir)
 
-				err = cmd.Wait()
-				Expect(err).NotTo(HaveOccurred())
-			}
-
-			It("can send and receive files over scp", func() {
-				sshHost, _, err := net.SplitHostPort(sshProxyAddress())
-				Expect(err).NotTo(HaveOccurred())
-
-				runScp(sourceDir, fmt.Sprintf("%s:/home/vcap", sshHost))
-				runScp(fmt.Sprintf("%s:/home/vcap/%s", sshHost, filepath.Base(sourceDir)), targetDir)
-
-				compareDir(sourceDir, filepath.Join(targetDir, filepath.Base(sourceDir)))
+					compareDir(sourceDir, filepath.Join(targetDir, filepath.Base(sourceDir)))
+				})
 			})
-		})
 
-		It("records failed ssh attempts", func() {
-			clientConfig := &ssh.ClientConfig{
-				User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 0),
-				Auth: []ssh.AuthMethod{ssh.Password("bogus password")},
-			}
+			It("records failed ssh attempts", func() {
+				clientConfig := &ssh.ClientConfig{
+					User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 0),
+					Auth: []ssh.AuthMethod{ssh.Password("bogus password")},
+				}
 
-			_, err := ssh.Dial("tcp", sshProxyAddress(), clientConfig)
-			Expect(err).To(HaveOccurred())
+				_, err := ssh.Dial("tcp", sshProxyAddress(), clientConfig)
+				Expect(err).To(HaveOccurred())
 
-			Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-unauthorized"))
+				Eventually(cf.Cf("events", appName)).Should(Say("audit.app.ssh-unauthorized"))
+			})
 		})
 	})
 })

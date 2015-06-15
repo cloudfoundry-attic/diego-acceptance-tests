@@ -30,20 +30,20 @@ var _ = Describe("Application Lifecycle", func() {
 		Eventually(cf.Cf("delete", appName, "-f")).Should(Exit(0))
 	})
 
-	reportedIDs := func(instances int) map[string]bool {
-		seenIDs := map[string]bool{}
+	reportedIDs := func(instances int) map[string]struct{} {
+		seenIDs := map[string]struct{}{}
 		for len(seenIDs) != instances {
-			seenIDs[helpers.CurlApp(appName, "/id")] = true
+			seenIDs[helpers.CurlApp(appName, "/id")] = struct{}{}
 		}
 
 		return seenIDs
 	}
 
-	differentIDsFrom := func(idsBefore map[string]bool) []string {
+	differentIDsFrom := func(idsBefore map[string]struct{}) []string {
 		differentIDs := []string{}
 
 		for id, _ := range reportedIDs(len(idsBefore)) {
-			if !idsBefore[id] {
+			if _, found := idsBefore[id]; !found {
 				differentIDs = append(differentIDs, id)
 			}
 		}
@@ -88,7 +88,11 @@ var _ = Describe("Application Lifecycle", func() {
 			Eventually(cf.Cf("scale", appName, "-i", "2")).Should(Exit(0))
 			Eventually(apps).Should(Say("2/2"))
 
-			idsBefore := reportedIDs(2)
+			idsBefore := map[string]struct{}{}
+			Eventually(func() map[string]struct{} {
+				idsBefore = reportedIDs(2)
+				return idsBefore
+			}).Should(HaveLen(2))
 
 			By("restarting an instance")
 			Eventually(cf.Cf("restart-app-instance", appName, "1")).Should(Exit(0))

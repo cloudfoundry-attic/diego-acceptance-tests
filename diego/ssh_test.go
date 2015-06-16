@@ -13,11 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/kr/pty"
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gbytes"
 	. "github.com/onsi/gomega/gexec"
@@ -28,8 +26,6 @@ import (
 	"github.com/cloudfoundry-incubator/cf-test-helpers/helpers"
 	"github.com/cloudfoundry-incubator/diego-acceptance-tests/helpers/assets"
 )
-
-const timeFormat = "2006-01-02 15:04:05.00 (MST)"
 
 var _ = Describe("SSH", func() {
 	var appName string
@@ -59,16 +55,6 @@ var _ = Describe("SSH", func() {
 		token := strings.TrimSpace(string(tokenStr[index:]))
 		Expect(token).To(ContainSubstring("bearer "))
 		return token
-	}
-
-	saySCPRun := func(cmd *exec.Cmd) {
-		startColor := ""
-		endColor := ""
-		if !config.DefaultReporterConfig.NoColor {
-			startColor = "\x1b[32m"
-			endColor = "\x1b[0m"
-		}
-		fmt.Fprintf(GinkgoWriter, "\n%s[%s]> %s %s\n", startColor, time.Now().UTC().Format(timeFormat), strings.Join(cmd.Args, " "), endColor)
 	}
 
 	type infoResponse struct {
@@ -158,6 +144,7 @@ var _ = Describe("SSH", func() {
 				ptyMaster, ptySlave, err := pty.Open()
 				Expect(err).NotTo(HaveOccurred())
 				defer ptyMaster.Close()
+				defer ptySlave.Close()
 
 				password := oauthToken() + "\n"
 
@@ -180,12 +167,8 @@ var _ = Describe("SSH", func() {
 					Setsid:  true,
 				}
 
-				saySCPRun(cmd)
 				err = cmd.Start()
 				Expect(err).NotTo(HaveOccurred())
-
-				// Close our open reference to ptySlave so that PTY Master recieves EOF
-				ptySlave.Close()
 
 				b := make([]byte, 1)
 				buf := []byte{}

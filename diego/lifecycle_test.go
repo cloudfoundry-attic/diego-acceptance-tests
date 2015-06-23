@@ -66,6 +66,18 @@ var _ = Describe("Application Lifecycle", func() {
 			By("checking its LANG")
 			Expect(helpers.CurlApp(appName, "/env/LANG")).To(ContainSubstring("en_US.UTF-8"))
 
+			By("checking its VCAP_APPLICATION")
+			vcap_app := helpers.CurlApp(appName, "/env/VCAP_APPLICATION")
+			Expect(vcap_app).To(ContainSubstring("instance_id"))
+			Expect(vcap_app).To(ContainSubstring("instance_index"))
+			Expect(vcap_app).To(ContainSubstring("application_version"))
+			Expect(vcap_app).To(ContainSubstring("application_name"))
+			Expect(vcap_app).To(ContainSubstring("application_version"))
+			Expect(vcap_app).To(ContainSubstring("application_id"))
+			Expect(vcap_app).To(ContainSubstring("host"))
+			Expect(vcap_app).To(ContainSubstring("port"))
+			Expect(vcap_app).To(ContainSubstring("limits"))
+
 			By("verifying the buildpack's detect never runs")
 			appGuid := guidForAppName(appName)
 			Eventually(cf.Cf("curl", "/v2/apps/"+appGuid)).Should(Say(`"detected_buildpack": ""`))

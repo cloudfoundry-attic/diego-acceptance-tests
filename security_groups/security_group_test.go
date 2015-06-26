@@ -58,7 +58,7 @@ var _ = Describe("Security Groups", func() {
 		var doraCurlResponse DoraCurlResponse
 		curlResponse := helpers.CurlApp(appName, fmt.Sprintf("/curl/%s/%s", secureHost, securePort))
 		json.Unmarshal([]byte(curlResponse), &doraCurlResponse)
-		Expect(doraCurlResponse.ReturnCode).ShouldNot(Equal(0))
+		Expect(doraCurlResponse.ReturnCode).NotTo(Equal(0))
 		firstCurlError := doraCurlResponse.ReturnCode
 
 		// apply security group

@@ -44,7 +44,7 @@ cat > integration_config.json <<EOF
   "admin_user": "admin",
   "admin_password": "admin",
   "apps_domain": "10.244.0.34.xip.io",
-  "secure_address": "10.244.16.2:4001",
+  "secure_address": "10.244.0.42:4001",
   "skip_ssl_validation": true
 }
 EOF

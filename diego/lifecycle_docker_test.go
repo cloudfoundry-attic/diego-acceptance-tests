@@ -1,4 +1,4 @@
-// +build !noInternet
+// +build !noInternet,!noDocker
 
 package diego
 

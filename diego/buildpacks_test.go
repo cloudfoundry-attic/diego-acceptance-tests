@@ -3,6 +3,8 @@
 package diego
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gbytes"
@@ -48,5 +50,68 @@ var _ = Describe("Buildpacks", func() {
 		session := cf.Cf("start", appName)
 		Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
 		Expect(session).To(Say("CF_STACK=cflinuxfs2"))
+	})
+
+	Describe("nodeJS", func() {
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Node, "--no-start", "-b", "nodejs_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("Hello from a node app!"))
+		})
+	})
+
+	Describe("java", func() {
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Java, "--no-start", "-b", "java_buildpack", "-m", "512M"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("set-env", appName, "JAVA_OPTS", "-Djava.security.egd=file:///dev/urandom"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("Hello, from your friendly neighborhood Java JSP!"))
+		})
+	})
+
+	Describe("golang", func() {
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Golang, "--no-start", "-b", "go_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("go, world"))
+		})
+	})
+
+	Describe("python", func() {
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Python, "--no-start", "-b", "python_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("python, world"))
+		})
+	})
+
+	Describe("php", func() {
+		var phpPushTimeout = CF_PUSH_TIMEOUT + 6*time.Minute
+
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Php, "--no-start", "-b", "php_buildpack"), phpPushTimeout).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, phpPushTimeout).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("Hello from php"))
+		})
+	})
+
+	Describe("staticfile", func() {
+		It("makes the app reachable via its bound route", func() {
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Staticfile, "--no-start", "-b", "staticfile_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			enableDiego(appName)
+			session := cf.Cf("start", appName)
+			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(helpers.CurlAppRoot(appName)).Should(ContainSubstring("Hello from a staticfile"))
+		})
 	})
 })

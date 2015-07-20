@@ -221,6 +221,10 @@ var _ = Describe("SSH", func() {
 
 					targetDir, err = ioutil.TempDir("", "scp-target")
 					Expect(err).NotTo(HaveOccurred())
+
+					Eventually(func() string {
+						return helpers.CurlApp(appName, "/env/INSTANCE_INDEX")
+					}).Should(Equal("0"))
 				})
 
 				runScp := func(src, dest string) {

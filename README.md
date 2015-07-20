@@ -59,3 +59,8 @@ After correctly setting the `CONFIG` environment variable, the following command
 ```
 ./bin/test
 ```
+
+To opt out of the SSH tests, add `-skipPackage ssh`:
+```
+./bin/test -skipPackage ssh
+```

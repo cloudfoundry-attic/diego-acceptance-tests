@@ -9,7 +9,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gbytes"
 	. "github.com/onsi/gomega/gexec"
 )
 
@@ -34,10 +33,11 @@ var _ = Describe("Environment Variables", func() {
 				Eventually(session).Should(Exit(0))
 				stagingEnv = string(session.Out.Contents())
 
-				Eventually(cf.Cf("set-staging-environment-variable-group", `{"STAGING_TEST_VAR":"staging_env_value"}`)).Should(Exit(0))
+				Eventually(cf.Cf("set-staging-environment-variable-group", `{"STAGING_TEST_VAR":"staging_env_value", "override":"fail"}`)).Should(Exit(0))
 			})
 
 			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Standalone, "--no-start", "-b", GIT_NULL_BUILDPACK), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("set-env", appName, "override", "pass"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 		})
 
@@ -51,7 +51,9 @@ var _ = Describe("Environment Variables", func() {
 			session := cf.Cf("start", appName)
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
 
-			Expect(session).To(Say("STAGING_TEST_VAR=staging_env_value"))
+			output := session.Buffer().Contents()
+			Expect(output).To(ContainSubstring("STAGING_TEST_VAR=staging_env_value"))
+			Expect(output).To(ContainSubstring("override=pass"))
 		})
 	})
 })

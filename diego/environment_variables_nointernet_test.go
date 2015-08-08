@@ -32,10 +32,11 @@ var _ = Describe("Environment Variables", func() {
 				Eventually(session).Should(Exit(0))
 				runningEnv = string(session.Out.Contents())
 
-				Eventually(cf.Cf("set-running-environment-variable-group", `{"RUNNING_TEST_VAR":"running_env_value"}`)).Should(Exit(0))
+				Eventually(cf.Cf("set-running-environment-variable-group", `{"RUNNING_TEST_VAR":"running_env_value", "override":"fail"}`)).Should(Exit(0))
 			})
 
 			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Dora, "--no-start", "-b", "ruby_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("set-env", appName, "override", "pass"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 		})
 
@@ -50,6 +51,7 @@ var _ = Describe("Environment Variables", func() {
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
 
 			Expect(helpers.CurlApp(appName, "/env/RUNNING_TEST_VAR")).To(ContainSubstring("running_env_value"))
+			Expect(helpers.CurlApp(appName, "/env/override")).To(ContainSubstring("pass"))
 		})
 	})
 })

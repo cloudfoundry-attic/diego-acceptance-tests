@@ -13,7 +13,7 @@ import (
 	"github.com/cloudfoundry-incubator/diego-acceptance-tests/helpers/assets"
 )
 
-var _ = Describe("Buildpacks without internet", func() {
+var _ = Describe("Buildpacks detected automatically", func() {
 	var appName string
 
 	BeforeEach(func() {
@@ -33,7 +33,7 @@ var _ = Describe("Buildpacks without internet", func() {
 	})
 
 	It("stages with a named buildpack and runs on diego", func() {
-		Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().HelloWorld, "--no-start", "-b", "ruby_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+		Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().HelloWorld, "--no-start"), CF_PUSH_TIMEOUT).Should(Exit(0))
 		enableDiego(appName)
 		Eventually(cf.Cf("start", appName), CF_PUSH_TIMEOUT).Should(Exit(0))
 		Eventually(helpers.CurlingAppRoot(appName)).Should(ContainSubstring("Hello, world!"))
@@ -41,7 +41,7 @@ var _ = Describe("Buildpacks without internet", func() {
 
 	Describe("nodeJS", func() {
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Node, "--no-start", "-b", "nodejs_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Node, "--no-start"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
@@ -51,7 +51,7 @@ var _ = Describe("Buildpacks without internet", func() {
 
 	Describe("java", func() {
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Java, "--no-start", "-b", "java_buildpack", "-m", "512M"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Java, "--no-start", "-m", "512M"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			Eventually(cf.Cf("set-env", appName, "JAVA_OPTS", "-Djava.security.egd=file:///dev/urandom"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
@@ -62,7 +62,7 @@ var _ = Describe("Buildpacks without internet", func() {
 
 	Describe("golang", func() {
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Golang, "--no-start", "-b", "go_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Golang, "--no-start"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
@@ -72,7 +72,7 @@ var _ = Describe("Buildpacks without internet", func() {
 
 	Describe("python", func() {
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Python, "--no-start", "-b", "python_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Python, "--no-start"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))
@@ -84,7 +84,7 @@ var _ = Describe("Buildpacks without internet", func() {
 		var phpPushTimeout = CF_PUSH_TIMEOUT + 6*time.Minute
 
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Php, "--no-start", "-b", "php_buildpack"), phpPushTimeout).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Php, "--no-start"), phpPushTimeout).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
 			Eventually(session, phpPushTimeout).Should(Exit(0))
@@ -94,7 +94,7 @@ var _ = Describe("Buildpacks without internet", func() {
 
 	Describe("staticfile", func() {
 		It("makes the app reachable via its bound route", func() {
-			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Staticfile, "--no-start", "-b", "staticfile_buildpack"), CF_PUSH_TIMEOUT).Should(Exit(0))
+			Eventually(cf.Cf("push", appName, "-p", assets.NewAssets().Staticfile, "--no-start"), CF_PUSH_TIMEOUT).Should(Exit(0))
 			enableDiego(appName)
 			session := cf.Cf("start", appName)
 			Eventually(session, CF_PUSH_TIMEOUT).Should(Exit(0))

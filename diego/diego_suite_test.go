@@ -1,6 +1,7 @@
 package diego
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -45,6 +46,11 @@ func guidForSpaceName(spaceName string) string {
 	spaceGuid := strings.TrimSpace(string(cfSpace.Out.Contents()))
 	Expect(spaceGuid).NotTo(Equal(""))
 	return spaceGuid
+}
+
+func setHealthCheck(appName, healthCheckType string) {
+	guid := guidForAppName(appName)
+	Eventually(cf.Cf("curl", "/v2/apps/"+guid, "-X", "PUT", "-d", fmt.Sprintf(`{"health_check_type": "%s"}`, healthCheckType))).Should(Exit(0))
 }
 
 func enableDiego(appName string) {

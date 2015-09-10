@@ -257,7 +257,7 @@ var _ = Describe("SSH", func() {
 					}
 
 					saySCPRun(cmd)
-					err = cmd.Start()
+					session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 					Expect(err).NotTo(HaveOccurred())
 
 					// Close our open reference to ptySlave so that PTY Master recieves EOF
@@ -280,10 +280,14 @@ var _ = Describe("SSH", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(n).To(Equal(len(password)))
 
-					io.Copy(GinkgoWriter, ptyMaster)
+					done := make(chan struct{})
+					go func() {
+						io.Copy(GinkgoWriter, ptyMaster)
+						close(done)
+					}()
 
-					err = cmd.Wait()
-					Expect(err).NotTo(HaveOccurred())
+					Eventually(done).Should(BeClosed())
+					Eventually(session).Should(Exit(0))
 				}
 
 				It("can send and receive files over scp", func() {

@@ -2,12 +2,15 @@ package ssh
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gexec"
 
+	"github.com/cloudfoundry-incubator/cf-test-helpers/cf"
 	"github.com/cloudfoundry-incubator/cf-test-helpers/helpers"
 )
 
@@ -51,4 +54,13 @@ func TestApplications(t *testing.T) {
 	}
 
 	RunSpecsWithDefaultAndCustomReporters(t, componentName, rs)
+}
+
+func guidForAppName(appName string) string {
+	cfApp := cf.Cf("app", appName, "--guid")
+	Expect(cfApp.Wait()).To(Exit(0))
+
+	appGuid := strings.TrimSpace(string(cfApp.Out.Contents()))
+	Expect(appGuid).NotTo(Equal(""))
+	return appGuid
 }

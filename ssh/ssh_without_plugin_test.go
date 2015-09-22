@@ -235,7 +235,7 @@ var _ = Describe("SSH without plugin", func() {
 		It("records failed ssh attempts", func() {
 			clientConfig := &ssh.ClientConfig{
 				User: fmt.Sprintf("cf:%s/%d", guidForAppName(appName), 0),
-				Auth: []ssh.AuthMethod{ssh.Password("bogus password")},
+				Auth: []ssh.AuthMethod{ssh.Password("bearer bogus-token")},
 			}
 
 			_, err := ssh.Dial("tcp", sshProxyAddress(), clientConfig)

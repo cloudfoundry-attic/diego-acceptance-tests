@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("SSH With Plugin", func() {
+var _ = Describe("SSH", func() {
 	var appName string
 
 	BeforeEach(func() {
@@ -58,7 +58,7 @@ var _ = Describe("SSH With Plugin", func() {
 
 	Describe("ssh", func() {
 		It("can execute a remote command in the container", func() {
-			envCmd := cf.Cf("ssh", "-i", "1", appName, "/usr/bin/env")
+			envCmd := cf.Cf("ssh", "-i", "1", appName, "-c", "/usr/bin/env")
 			Expect(envCmd.Wait()).To(Exit(0))
 
 			output := string(envCmd.Buffer().Contents())
@@ -71,7 +71,7 @@ var _ = Describe("SSH With Plugin", func() {
 		})
 
 		It("runs an interactive session when no command is provided", func() {
-			envCmd := exec.Command("cf", "ssh", "-i1", appName)
+			envCmd := exec.Command("cf", "ssh", "-i", "1", appName)
 
 			stdin, err := envCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -102,7 +102,7 @@ var _ = Describe("SSH With Plugin", func() {
 		})
 
 		It("allows local port forwarding", func() {
-			listenCmd := exec.Command("cf", "ssh", "-i1", "-L127.0.0.1:37001:localhost:8080", appName)
+			listenCmd := exec.Command("cf", "ssh", "-i", "1", "-L", "127.0.0.1:37001:localhost:8080", appName)
 
 			stdin, err := listenCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -283,7 +283,7 @@ func enableSSH(appName string) {
 }
 
 func sshAccessCode() string {
-	getCode := cf.Cf("get-ssh-code")
+	getCode := cf.Cf("ssh-code")
 	Eventually(getCode).Should(Exit(0))
 	return strings.TrimSpace(string(getCode.Buffer().Contents()))
 }

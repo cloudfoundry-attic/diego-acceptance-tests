@@ -41,10 +41,10 @@ NOTE: The secure_address must be some inaccessible endpoint from any container, 
 ```bash
 cat > integration_config.json <<EOF
 {
-  "api": "api.10.244.0.34.xip.io",
+  "api": "api.bosh-lite.com",
   "admin_user": "admin",
   "admin_password": "admin",
-  "apps_domain": "10.244.0.34.xip.io",
+  "apps_domain": "bosh-lite.com",
   "secure_address": "10.244.0.42:4001",
   "skip_ssl_validation": true
 }

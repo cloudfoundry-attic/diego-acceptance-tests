@@ -30,8 +30,7 @@ To run the Diego Acceptance tests, you will need:
 - a running Diego deployment
 - credentials for an Admin user
 - an environment variable `CONFIG` which points to a `.json` file that contains the application domain
-- the [cf CLI](https://github.com/cloudfoundry/cli)
-- the [Diego SSH CLI plugin](https://github.com/cloudfoundry-incubator/diego-ssh/blob/master/README.md#cf-cli-plugin)
+- the [cf CLI](https://github.com/cloudfoundry/cli) (version >= 6.14.0 required)
 
 The following commands will setup the `CONFIG` for a [bosh-lite](https://github.com/cloudfoundry/bosh-lite)
 installation. Replace credentials and URLs as appropriate for your environment.

@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"encoding/json"
 	"os/exec"
 	"strings"
 	"testing"
@@ -17,8 +18,9 @@ import (
 const CF_PUSH_TIMEOUT = 4 * time.Minute
 
 var (
-	context helpers.SuiteContext
-	scpPath string
+	context  helpers.SuiteContext
+	scpPath  string
+	sftpPath string
 )
 
 func TestApplications(t *testing.T) {
@@ -31,12 +33,33 @@ func TestApplications(t *testing.T) {
 	context = helpers.NewContext(config)
 	environment := helpers.NewEnvironment(context)
 
+	type sshPaths struct {
+		SCP  string `json:"scp"`
+		SFTP string `json:"sftp"`
+	}
+
 	var _ = SynchronizedBeforeSuite(func() []byte {
-		path, err := exec.LookPath("scp")
+		scp, err := exec.LookPath("scp")
 		Expect(err).NotTo(HaveOccurred())
-		return []byte(path)
-	}, func(encodedSCPPath []byte) {
-		scpPath = string(encodedSCPPath)
+
+		sftp, err := exec.LookPath("sftp")
+		Expect(err).NotTo(HaveOccurred())
+
+		paths, err := json.Marshal(sshPaths{
+			SCP:  scp,
+			SFTP: sftp,
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		return []byte(paths)
+	}, func(encodedSSHPaths []byte) {
+		var sshPaths sshPaths
+		err := json.Unmarshal(encodedSSHPaths, &sshPaths)
+		Expect(err).NotTo(HaveOccurred())
+
+		scpPath = sshPaths.SCP
+		sftpPath = sshPaths.SFTP
+
 		environment.Setup()
 	})
 

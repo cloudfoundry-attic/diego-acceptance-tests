@@ -230,29 +230,14 @@ var _ = Describe("SSH", func() {
 				Setsid:  true,
 			}
 
-			saySCPRun(cmd)
+			sayCommandRun(cmd)
 			session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Close our open reference to ptySlave so that PTY Master recieves EOF
 			ptySlave.Close()
 
-			b := make([]byte, 1)
-			buf := []byte{}
-			passwordPrompt := []byte("password: ")
-			for {
-				n, err := ptyMaster.Read(b)
-				Expect(n).To(Equal(1))
-				Expect(err).NotTo(HaveOccurred())
-				buf = append(buf, b[0])
-				if bytes.HasSuffix(buf, passwordPrompt) {
-					break
-				}
-			}
-
-			n, err := ptyMaster.Write([]byte(password))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(n).To(Equal(len(password)))
+			sendPassword(ptyMaster, password)
 
 			done := make(chan struct{})
 			go func() {
@@ -274,7 +259,144 @@ var _ = Describe("SSH", func() {
 			compareDir(sourceDir, filepath.Join(targetDir, filepath.Base(sourceDir)))
 		})
 	})
+
+	Describe("sftp", func() {
+		var (
+			sourceDir, targetDir             string
+			generatedFile, generatedFileName string
+			generatedFileInfo                os.FileInfo
+			err                              error
+		)
+
+		BeforeEach(func() {
+			Expect(err).NotTo(HaveOccurred())
+
+			sourceDir, err = ioutil.TempDir("", "sftp-source")
+			Expect(err).NotTo(HaveOccurred())
+
+			fileContents := make([]byte, 1024)
+			b, err := rand.Read(fileContents)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(b).To(Equal(len(fileContents)))
+
+			generatedFileName = "binary.dat"
+			generatedFile = filepath.Join(sourceDir, generatedFileName)
+
+			err = ioutil.WriteFile(generatedFile, fileContents, 0664)
+			Expect(err).NotTo(HaveOccurred())
+
+			generatedFileInfo, err = os.Stat(generatedFile)
+			Expect(err).NotTo(HaveOccurred())
+
+			targetDir, err = ioutil.TempDir("", "sftp-target")
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() string {
+				return helpers.CurlApp(appName, "/env/INSTANCE_INDEX")
+			}).Should(Equal("0"))
+		})
+
+		runSftp := func(stdin io.Reader) *Buffer {
+			sshHost, sshPort, err := net.SplitHostPort(sshProxyAddress())
+			Expect(err).NotTo(HaveOccurred())
+
+			ptyMaster, ptySlave, err := pty.Open()
+			Expect(err).NotTo(HaveOccurred())
+			defer ptyMaster.Close()
+
+			password := sshAccessCode() + "\n"
+
+			cmd := exec.Command(
+				sftpPath,
+				"-P", sshPort,
+				"-oUserKnownHostsFile=/dev/null",
+				"-oStrictHostKeyChecking=no",
+				fmt.Sprintf("cf:%s/0@%s", guidForAppName(appName), sshHost),
+			)
+
+			cmd.Stdin = ptySlave
+			cmd.Stdout = ptySlave
+			cmd.Stderr = ptySlave
+
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Setctty: true,
+				Setsid:  true,
+			}
+
+			sayCommandRun(cmd)
+			session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Close our open reference to ptySlave so that PTY Master recieves EOF
+			ptySlave.Close()
+
+			sendPassword(ptyMaster, password)
+
+			done := make(chan struct{})
+			go func() {
+				io.Copy(GinkgoWriter, ptyMaster)
+				close(done)
+			}()
+
+			go func() {
+				io.Copy(ptyMaster, stdin)
+				ptyMaster.Write([]byte("exit\n"))
+			}()
+
+			Eventually(done).Should(BeClosed())
+			Eventually(session).Should(Exit(0))
+
+			return session.Buffer()
+		}
+
+		It("defaults to $HOME as the remote working directory", func() {
+			output := runSftp(strings.NewReader("pwd\n"))
+			Eventually(output).Should(Say("working directory: /home/vcap"))
+		})
+
+		It("can send and receive files over sftp", func() {
+			input := &bytes.Buffer{}
+			input.WriteString("mkdir files\n")
+			input.WriteString("cd files\n")
+			input.WriteString("lcd " + sourceDir + "\n")
+			input.WriteString("put " + generatedFileName + "\n")
+			input.WriteString("lcd " + targetDir + "\n")
+			input.WriteString("get " + generatedFileName + "\n")
+
+			runSftp(input)
+
+			compareDir(sourceDir, targetDir)
+		})
+	})
 })
+
+func sendPassword(pty *os.File, password string) {
+	passwordPrompt := []byte("password: ")
+
+	b := make([]byte, 1)
+	buf := []byte{}
+	done := make(chan struct{})
+
+	go func() {
+		defer GinkgoRecover()
+		for {
+			n, err := pty.Read(b)
+			Expect(n).To(Equal(1))
+			Expect(err).NotTo(HaveOccurred())
+			buf = append(buf, b[0])
+			if bytes.HasSuffix(buf, passwordPrompt) {
+				break
+			}
+		}
+		n, err := pty.Write([]byte(password))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(n).To(Equal(len(password)))
+
+		close(done)
+	}()
+
+	Eventually(done).Should(BeClosed())
+}
 
 func enableSSH(appName string) {
 	guid := guidForAppName(appName)
@@ -288,7 +410,7 @@ func sshAccessCode() string {
 	return strings.TrimSpace(string(getCode.Buffer().Contents()))
 }
 
-func saySCPRun(cmd *exec.Cmd) {
+func sayCommandRun(cmd *exec.Cmd) {
 	const timeFormat = "2006-01-02 15:04:05.00 (MST)"
 
 	startColor := ""

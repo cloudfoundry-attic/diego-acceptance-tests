@@ -15,13 +15,15 @@ import (
 )
 
 const (
-	CF_PUSH_TIMEOUT                       = 4 * time.Minute
-	LONG_CURL_TIMEOUT                     = 4 * time.Minute
+	BINARY_BUILDPACK                      = "binary_buildpack"
+	ZIP_NULL_BUILDPACK                    = "https://github.com/cloudfoundry-incubator/null-buildpack/archive/master.zip"
+	GIT_NULL_BUILDPACK                    = "https://github.com/cloudfoundry-incubator/null-buildpack"
 	DOCKER_IMAGE_DOWNLOAD_DEFAULT_TIMEOUT = 5 * time.Minute
+)
 
-	BINARY_BUILDPACK   = "binary_buildpack"
-	ZIP_NULL_BUILDPACK = "https://github.com/cloudfoundry-incubator/null-buildpack/archive/master.zip"
-	GIT_NULL_BUILDPACK = "https://github.com/cloudfoundry-incubator/null-buildpack"
+var (
+	CF_PUSH_TIMEOUT   = 4 * time.Minute
+	LONG_CURL_TIMEOUT = 4 * time.Minute
 )
 
 var context helpers.SuiteContext
@@ -86,6 +88,14 @@ func TestApplications(t *testing.T) {
 	if config.ArtifactsDirectory != "" {
 		helpers.EnableCFTrace(config, componentName)
 		rs = append(rs, helpers.NewJUnitReporter(config, componentName))
+	}
+
+	if config.CfPushTimeout > 0 {
+		CF_PUSH_TIMEOUT = config.CfPushTimeout * time.Second
+	}
+
+	if config.LongCurlTimeout > 0 {
+		LONG_CURL_TIMEOUT = config.LongCurlTimeout * time.Second
 	}
 
 	RunSpecsWithDefaultAndCustomReporters(t, componentName, rs)

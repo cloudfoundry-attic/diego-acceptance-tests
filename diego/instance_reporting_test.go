@@ -31,7 +31,7 @@ var _ = Describe("Getting instance information", func() {
 		BeforeEach(func() {
 			context.SetRunawayQuota()
 			scale := cf.Cf("scale", appName, "-m", helpers.RUNAWAY_QUOTA_MEM_LIMIT, "-f")
-			Eventually(scale).Should(Say("insufficient resources"))
+			Eventually(scale).Should(Say("down"))
 			scale.Kill()
 		})
 

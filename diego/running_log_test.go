@@ -43,8 +43,8 @@ var _ = Describe("Logs from apps hosted by Diego", func() {
 			By("logging health checks")
 			logs = cf.Cf("logs", appName, "--recent")
 			Eventually(logs).Should(Exit(0))
-			Expect(logs.Out).To(Say("\\[HEALTH/0\\]\\s+OUT healthcheck passed"))
-			Expect(logs.Out).To(Say("\\[HEALTH/0\\]\\s+OUT Exit status 0"))
+			Expect(logs.Out).To(Say("Starting health monitoring of container"))
+			Expect(logs.Out).To(Say("Container became healthy"))
 
 			By("logging application stdout")
 			message = "A message from stdout"

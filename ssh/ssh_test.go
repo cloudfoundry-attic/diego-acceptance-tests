@@ -58,7 +58,7 @@ var _ = Describe("SSH", func() {
 
 	Describe("ssh", func() {
 		It("can execute a remote command in the container", func() {
-			envCmd := cf.Cf("ssh", "-i", "1", appName, "-c", "/usr/bin/env")
+			envCmd := cf.Cf("ssh", skipHostValidationFlag(), "-i", "1", appName, "-c", "/usr/bin/env")
 			Expect(envCmd.Wait()).To(Exit(0))
 
 			output := string(envCmd.Buffer().Contents())
@@ -71,7 +71,7 @@ var _ = Describe("SSH", func() {
 		})
 
 		It("runs an interactive session when no command is provided", func() {
-			envCmd := exec.Command("cf", "ssh", "-i", "1", appName)
+			envCmd := exec.Command("cf", "ssh", skipHostValidationFlag(), "-i", "1", appName)
 
 			stdin, err := envCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -102,7 +102,7 @@ var _ = Describe("SSH", func() {
 		})
 
 		It("allows local port forwarding", func() {
-			listenCmd := exec.Command("cf", "ssh", "-i", "1", "-L", "127.0.0.1:37001:localhost:8080", appName)
+			listenCmd := exec.Command("cf", "ssh", skipHostValidationFlag(), "-i", "1", "-L", "127.0.0.1:37001:localhost:8080", appName)
 
 			stdin, err := listenCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -396,6 +396,14 @@ func sendPassword(pty *os.File, password string) {
 	}()
 
 	Eventually(done).Should(BeClosed())
+}
+
+func skipHostValidationFlag() string {
+	if helpers.LoadConfig().SkipSSHHostValidation {
+		return "-k"
+	} else {
+		return ""
+	}
 }
 
 func enableSSH(appName string) {

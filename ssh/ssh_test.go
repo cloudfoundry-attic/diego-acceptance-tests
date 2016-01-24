@@ -31,9 +31,13 @@ import (
 
 var _ = Describe("SSH", func() {
 	var appName string
+	var skipSSLValidationOption string
 
 	BeforeEach(func() {
 		appName = generator.RandomName()
+		if helpers.LoadConfig().SkipSSLValidation {
+			skipSSLValidationOption = "-k"
+		}
 		Eventually(cf.Cf(
 			"push", appName,
 			"-p", assets.NewAssets().Dora,
@@ -58,7 +62,7 @@ var _ = Describe("SSH", func() {
 
 	Describe("ssh", func() {
 		It("can execute a remote command in the container", func() {
-			envCmd := cf.Cf("ssh", "-i", "1", appName, "-c", "/usr/bin/env")
+			envCmd := cf.Cf("ssh", skipSSLValidationOption, "-i", "1", appName, "-c", "/usr/bin/env")
 			Expect(envCmd.Wait()).To(Exit(0))
 
 			output := string(envCmd.Buffer().Contents())
@@ -71,7 +75,7 @@ var _ = Describe("SSH", func() {
 		})
 
 		It("runs an interactive session when no command is provided", func() {
-			envCmd := exec.Command("cf", "ssh", "-i", "1", appName)
+			envCmd := exec.Command("cf", "ssh", skipSSLValidationOption, "-i", "1", appName)
 
 			stdin, err := envCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -102,7 +106,7 @@ var _ = Describe("SSH", func() {
 		})
 
 		It("allows local port forwarding", func() {
-			listenCmd := exec.Command("cf", "ssh", "-i", "1", "-L", "127.0.0.1:37001:localhost:8080", appName)
+			listenCmd := exec.Command("cf", "ssh", skipSSLValidationOption, "-i", "1", "-L", "127.0.0.1:37001:localhost:8080", appName)
 
 			stdin, err := listenCmd.StdinPipe()
 			Expect(err).NotTo(HaveOccurred())

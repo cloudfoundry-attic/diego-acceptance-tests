@@ -1,7 +1,0 @@
-#!/bin/bash
-
-set -e -x
-
-go install -v github.com/onsi/ginkgo/ginkgo
-ginkgo -r -slowSpecThreshold=120 "$@" diego security_groups ssh
-
